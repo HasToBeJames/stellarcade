@@ -1,32 +1,34 @@
-//! Stellarcade Dice Roll Contract
-//!
-//! A dice betting game integrated with the Random Generator contract.
-//! Players predict a face (1–6), place a wager, and an oracle resolves
-//! the outcome via the RNG contract's request/fulfill model.
-//!
-//! ## Game Flow
-//! 1. Player calls `roll` → tokens transfer in, RNG requested, game stored.
-//! 2. Oracle fulfills randomness on the RNG contract (off-chain step).
-//! 3. Anyone calls `resolve_roll` → reads RNG result, settles payout.
-//!
-//! ## Payout
-//! A correct prediction pays `6 * wager - fee`, where the fee is
-//! `wager * house_edge_bps / 10000` applied to the winnings portion
-//! (5 * wager). For example, at 250 bps (2.5%) and a 100-token wager,
-//! winnings = 500, fee = 500 * 250 / 10000 = 12, payout = 600 - 12 = 588.
-//!
-//! ## House Edge
-//! Configured at init via `house_edge_bps` (basis points). Applied only
-//! to the profit portion of a winning bet (5 * wager).
 #![no_std]
 #![allow(unexpected_cfgs)]
 
 use soroban_sdk::{
-    contract, contracterror, contractevent, contractimpl, contracttype, token::TokenClient,
-    Address, Env, Vec,
+    contract, contractclient, contracterror, contractevent, contractimpl, contracttype,
+    token::TokenClient, Address, BytesN, Env, Vec,
 };
 
-use stellarcade_random_generator::RandomGeneratorClient;
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FulfilledEntry {
+    pub caller: Address,
+    pub max: u64,
+    pub server_seed: BytesN<32>,
+    pub result: u64,
+    pub commitment: BytesN<32>,
+}
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[repr(u32)]
+pub enum RngError {
+    RequestNotFound = 6,
+}
+
+#[contractclient(name = "RandomGeneratorClient")]
+pub trait RandomGeneratorContract {
+    fn request_random(env: Env, caller: Address, request_id: u64, max: u64)
+        -> Result<(), RngError>;
+    fn get_result(env: Env, caller: Address, request_id: u64) -> Result<FulfilledEntry, RngError>;
+}
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -297,7 +299,7 @@ impl DiceRoll {
         // Read RNG result
         let rng_addr: Address = env.storage().instance().get(&DataKey::RngContract).unwrap();
         let rng_client = RandomGeneratorClient::new(&env, &rng_addr);
-        let fulfilled = rng_client.try_get_result(&game_id);
+        let fulfilled = rng_client.try_get_result(&env.current_contract_address(), &game_id);
         let entry = match fulfilled {
             Ok(Ok(e)) => e,
             _ => return Err(Error::RngNotFulfilled),

@@ -53,7 +53,23 @@ describe('QuestModel.recordProgress', () => {
     expect(result.claimed).toBe(false);
   });
 
-  test('marks claimed and bumps streak the moment progress reaches target', async () => {
+  test('a fresh row that already reaches target is completed but not settled', async () => {
+    jest.resetModules();
+    const { db, tables } = makeDb();
+    tables.quests = { firstResult: { id: 2, quest_id: 'play-2-games', target: 2 } };
+    tables.user_quests = { firstResult: undefined };
+    jest.doMock('../../src/config/database', () => db);
+    const QuestModel = require('../../src/models/Quest.model');
+
+    const result = await QuestModel.recordProgress(1, 'play-2-games', 2);
+    expect(result.progress).toBe(2);
+    // Completion must not imply a payout. This assertion fails with the
+    // pre-#1588 behaviour, which set claimed = progress >= target.
+    expect(result.claimed).toBe(false);
+    expect(result.streak).toBe(1);
+  });
+
+  test('marks completion via streak without settling claimed at target', async () => {
     jest.resetModules();
     const { db, tables } = makeDb();
     tables.quests = { firstResult: { id: 2, quest_id: 'win-3-games', target: 3 } };
@@ -65,8 +81,43 @@ describe('QuestModel.recordProgress', () => {
 
     const result = await QuestModel.recordProgress(1, 'win-3-games', 1);
     expect(result.progress).toBe(3);
-    expect(result.claimed).toBe(true);
+    // Completion is progress-based; no payout happened, so the reward is not
+    // settled. This fails with the old claimed-on-completion behaviour.
+    expect(result.claimed).toBe(false);
     expect(result.streak).toBe(1);
+  });
+
+  test('a completed quest stays unclaimed and bumps streak only once', async () => {
+    jest.resetModules();
+    const { db, tables } = makeDb();
+    tables.quests = { firstResult: { id: 2, quest_id: 'play-5-games', target: 5 } };
+    tables.user_quests = {
+      firstResult: { id: 5, progress: 5, claimed: false, streak: 1 },
+    };
+    jest.doMock('../../src/config/database', () => db);
+    const QuestModel = require('../../src/models/Quest.model');
+
+    const result = await QuestModel.recordProgress(1, 'play-5-games', 1);
+    expect(result.progress).toBe(5);
+    expect(result.claimed).toBe(false);
+    // With claimed no longer tracking completion, the streak bump must be
+    // driven by the progress transition, not by a one-time claimed flip.
+    expect(result.streak).toBe(1);
+  });
+
+  test('a genuinely settled reward is preserved by later progress', async () => {
+    jest.resetModules();
+    const { db, tables } = makeDb();
+    tables.quests = { firstResult: { id: 2, quest_id: 'play-5-games', target: 5 } };
+    tables.user_quests = {
+      firstResult: { id: 5, progress: 2, claimed: true, streak: 1 },
+    };
+    jest.doMock('../../src/config/database', () => db);
+    const QuestModel = require('../../src/models/Quest.model');
+
+    const result = await QuestModel.recordProgress(1, 'play-5-games', 1);
+    expect(result.progress).toBe(3);
+    expect(result.claimed).toBe(true);
   });
 
   test('does not exceed the target even if progress is added past it', async () => {
@@ -97,7 +148,9 @@ describe('QuestModel.recordDailyLogin', () => {
 
     const result = await QuestModel.recordDailyLogin(7);
     expect(result.progress).toBe(1);
-    expect(result.claimed).toBe(true);
+    // Checking in completes the daily objective but never settles its reward.
+    // This fails with the old claimed: quest.target <= 1 behaviour.
+    expect(result.claimed).toBe(false);
     expect(result.streak).toBe(1);
   });
 
@@ -129,6 +182,25 @@ describe('QuestModel.recordDailyLogin', () => {
 
     const result = await QuestModel.recordDailyLogin(7);
     expect(result.streak).toBe(5);
+    // A real settlement is preserved across check-ins.
+    expect(result.claimed).toBe(true);
+  });
+
+  test('a new-day check-in never settles an unclaimed daily reward', async () => {
+    jest.resetModules();
+    const { db, tables } = makeDb();
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    tables.quests = { firstResult: { id: 3, quest_id: 'daily-login', target: 1 } };
+    tables.user_quests = {
+      firstResult: { id: 9, progress: 1, claimed: false, streak: 4, updated_at: yesterday },
+    };
+    jest.doMock('../../src/config/database', () => db);
+    const QuestModel = require('../../src/models/Quest.model');
+
+    const result = await QuestModel.recordDailyLogin(7);
+    expect(result.streak).toBe(5);
+    // Fails with the old `claimed: true` update on every new-day check-in.
+    expect(result.claimed).toBe(false);
   });
 
   test('a gap of more than a day resets the streak to 1, not zero', async () => {

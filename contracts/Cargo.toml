@@ -3,6 +3,9 @@ resolver = "2"
 
 members = [
     "access-control",
+    "anti-cheat-bounties",
+    "arena-ladder",
+    "arena-passes",
     "arena-sessions",
     "bounty-escrow",
     "campaign-claims",
@@ -15,6 +18,9 @@ members = [
     "perk-claims",
     "achievement-badge",
     "ai-generated-game",
+    "asset-escrow-v3",
+    "attendance-pass",
+    "badge-minter",
     "balance-management",
     "challenge-ladder",
     "coin-flip",
@@ -50,7 +56,6 @@ members = [
     "matchmaking-queue",
     "multiplayer-room",
     "nft-reward",
-    "number-guess",
     "oracle-integration",
     "pattern-puzzle",
     "penalty-slashing",
@@ -99,6 +104,20 @@ members = [
     "blind-auction",
     "prediction-market",
     "dutch-auction",
+    "fee-management",
+    "contract-address-registry",
+    "reward-router",
+    "tournament-lobby",
+    "jackpot-pool",
+    "lending-pool",
+    "quest-redeemer",
+    "reserve-manager",
+    "speed-trivia",
+    "staking",
+    "tournament-system",
+    "number-guess",
+    "reward-vesting",
+    "session-nonce-manager",
 ]
 
 exclude = [
@@ -135,12 +154,9 @@ exclude = [
     "ladder-checkpoints",
     "ladder-seasons",
     "loot-crate",
-    "map-rotation",
     "map-voting",
     "mission-ledger",
-    "player-rating",
     "prize-router-v2",
-    "quest-board",
     "quest-ledger-v2",
     "queue-rewards",
     "raffle-engine",
@@ -149,41 +165,15 @@ exclude = [
     "reserve-auction",
     "reward-bridges",
     "reward-unlocker",
-    "reward-vesting",
     "round-vouchers",
-    "season-pass",
     "season-rewards-vault",
-    "session-nonce-manager",
-    "speed-trivia",
     "squad-match",
     "squad-rewards",
     "squad-roster",
-    "staking",
-    "tournament-system",
     "trivia-game",
     "upgrade-mechanism",
     "wallet-claims-v2",
     "wallet-reserves",
-    # These fail specifically at the `cargo test --workspace` / --tests step
-    # (native host target), not the wasm build/clippy passes above: either a
-    # dev-dependency rand_core version conflict pulled in via soroban-sdk's
-    # testutils feature (fee-management), a missing `use
-    # soroban_sdk::testutils::Ledger;` import in test code (jackpot-pool,
-    # lending-pool), or an `Option<CustomStruct>` #[contracttype] that
-    # doesn't satisfy soroban's XDR conversion bounds (quest-redeemer,
-    # reserve-manager).
-    "fee-management",
-    "jackpot-pool",
-    "lending-pool",
-    "quest-redeemer",
-    "reserve-manager",
-    # Pin an older soroban-sdk 21.x line whose testutils feature drags in
-    # soroban-env-host 21.2.1, which conflicts on rand_core version between
-    # ed25519-dalek and rand_chacha — same root cause as fee-management
-    # above, different trigger crates.
-    "contract-address-registry",
-    "reward-router",
-    "tournament-lobby",
 ]
 
 [profile.release]

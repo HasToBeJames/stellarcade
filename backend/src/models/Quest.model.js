@@ -54,10 +54,13 @@ const QuestModel = {
 
   /**
    * Adds `delta` to a user's progress on a non-repeating quest (e.g.
-   * play-5-games), clamped to the quest's target and marking it claimed
-   * once reached. A no-op (returns null) if the quest slug doesn't exist —
-   * callers are expected to fire-and-forget this, never let a missing
-   * quest definition break the action that triggered it.
+   * play-5-games), clamped to the quest's target. Completion (progress >=
+   * target) is derived from progress only and is deliberately NOT reward
+   * settlement: this method never sets `claimed`, which is reserved for an
+   * actual payout/mint performed by a separate settlement flow (#1588).
+   * A no-op (returns null) if the quest slug doesn't exist; callers are
+   * expected to fire-and-forget this, never let a missing quest definition
+   * break the action that triggered it.
    *
    * @param {number} userId
    * @param {string} questSlug
@@ -75,13 +78,17 @@ const QuestModel = {
 
       if (!existing) {
         const progress = Math.min(delta, quest.target);
+        const completed = progress >= quest.target;
         const rows = await db('user_quests')
           .insert({
             user_id: userId,
             quest_id: quest.id,
             progress,
-            claimed: progress >= quest.target,
-            streak: progress >= quest.target ? 1 : 0,
+            // `claimed` means the reward was actually settled, not merely
+            // earned. Reaching the target seeds the streak but must not imply
+            // a payout (#1588).
+            claimed: false,
+            streak: completed ? 1 : 0,
             updated_at: db.fn.now(),
           })
           .returning('*');
@@ -89,13 +96,17 @@ const QuestModel = {
       }
 
       const progress = Math.min(existing.progress + delta, quest.target);
-      const newlyClaimed = !existing.claimed && progress >= quest.target;
+      // First completion is a progress transition, not a settlement event.
+      // Bumping the streak on that transition (rather than on `claimed`)
+      // keeps it at exactly once while leaving `claimed` for the real payout
+      // flow (#1588).
+      const justCompleted = Number(existing.progress) < quest.target && progress >= quest.target;
       const rows = await db('user_quests')
         .where({ id: existing.id })
         .update({
           progress,
-          claimed: existing.claimed || newlyClaimed,
-          streak: newlyClaimed ? existing.streak + 1 : existing.streak,
+          claimed: existing.claimed,
+          streak: justCompleted ? existing.streak + 1 : existing.streak,
           updated_at: db.fn.now(),
         })
         .returning('*');
@@ -110,6 +121,8 @@ const QuestModel = {
    * Records a daily check-in for the daily-login quest. Calendar-day aware:
    * a second check-in the same day is a no-op, a check-in on the very next
    * calendar day extends the streak, and any bigger gap resets it to 1.
+   * Checking in completes the daily objective, but never settles its reward:
+   * `claimed` is left untouched for the real payout flow (#1588).
    *
    * @param {number} userId
    * @returns {Promise<object|null>}
@@ -130,7 +143,8 @@ const QuestModel = {
             user_id: userId,
             quest_id: quest.id,
             progress: Math.min(1, quest.target),
-            claimed: quest.target <= 1,
+            // Daily completion is not settlement; see #1588.
+            claimed: false,
             streak: 1,
             updated_at: db.fn.now(),
           })
@@ -150,7 +164,9 @@ const QuestModel = {
         .where({ id: existing.id })
         .update({
           progress: Math.min(1, quest.target),
-          claimed: true,
+          // Preserve whatever the settlement flow set; a check-in must not
+          // flip an earned quest into a paid-out one (#1588).
+          claimed: existing.claimed,
           streak,
           updated_at: db.fn.now(),
         })

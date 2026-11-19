@@ -105,9 +105,9 @@ const log = async ({ actor, action, target, payload, outcome = 'success', metada
   }
 };
 
-const list = async ({ actor, action, limit = 50 } = {}) => {
+const list = async ({ actor, action, limit = 50, allowGlobal = false } = {}) => {
   try {
-    return await AuditLog.findAll({ actor, action, limit });
+    return await AuditLog.findAll({ actor, action, limit, allowGlobal });
   } catch (error) {
     logger.error(`[AuditService] Failed to read audit log: ${error.message}`);
     throw error;

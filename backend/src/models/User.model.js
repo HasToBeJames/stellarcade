@@ -35,15 +35,14 @@ const User = {
   },
 
   /**
-   * Get the current balance of a user.
-   * @param {number} userId
+   * Find a user by internal id.
+   * @param {number|string} id
    */
-  async getBalance(userId) {
+  async findById(id) {
     try {
-      const user = await db('users').where({ id: userId }).select('balance').first();
-      return user ? user.balance : 0;
+      return await db('users').where({ id }).first();
     } catch (error) {
-      logger.error('Error in User.getBalance:', error);
+      logger.error('Error in User.findById:', error);
       throw error;
     }
   },

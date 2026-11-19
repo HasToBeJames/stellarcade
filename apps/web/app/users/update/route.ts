@@ -1,10 +1,46 @@
 import { NextResponse } from 'next/server';
+import jwt from 'jsonwebtoken';
 
 import { isStellarPublicKey } from '@/utils/validation';
 import fs from 'fs';
 import path from 'path';
 
 const DB_FILE = path.join(process.cwd(), '.data', 'user_profiles.json');
+
+/**
+ * Verifies the caller's JWT (issued by the backend's auth.service.js,
+ * HS256, carrying `walletAddress`) and returns the wallet it proves
+ * ownership of, or null if there's no valid, non-expired token.
+ *
+ * This route previously trusted whatever `address` the request body named,
+ * letting anyone update (or take over) any wallet's profile (#1552). The
+ * backend route for the same operation (users.routes.js) enforces this the
+ * same way, both now requiring the request to prove it's acting as the
+ * wallet it claims to be, via a token this app's JWT_SECRET must match.
+ */
+function verifyWalletFromToken(request: Request): string | null {
+  const authorization = request.headers.get('authorization');
+  if (!authorization) return null;
+
+  const [scheme, token] = authorization.split(' ');
+  if (!scheme || scheme.toLowerCase() !== 'bearer' || !token) return null;
+
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    console.error('[API /users/update] JWT_SECRET is not configured');
+    return null;
+  }
+
+  try {
+    const decoded = jwt.verify(token, secret, { algorithms: ['HS256'] }) as {
+      walletAddress?: string;
+      address?: string;
+    };
+    return decoded.walletAddress || decoded.address || null;
+  } catch {
+    return null;
+  }
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -56,6 +92,14 @@ function writeProfiles(data: Record<string, StoredProfile>) {
 export async function POST(request: Request) {
   console.log('[API /users/update] Received POST request');
   try {
+    const authenticatedWallet = verifyWalletFromToken(request);
+    if (!authenticatedWallet) {
+      return NextResponse.json(
+        { error: 'A valid Authorization bearer token is required.', code: 'UNAUTHENTICATED' },
+        { status: 401, headers: corsHeaders }
+      );
+    }
+
     const rawText = await request.text();
     const body = rawText ? JSON.parse(rawText) : {};
     const { address, username, telegramHandle, telegramUserId, ageConfirmed } = body || {};
@@ -64,6 +108,13 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'Address and username are required.' },
         { status: 400, headers: corsHeaders }
+      );
+    }
+
+    if (address !== authenticatedWallet) {
+      return NextResponse.json(
+        { error: 'You can only update the profile for your own wallet.', code: 'FORBIDDEN' },
+        { status: 403, headers: corsHeaders }
       );
     }
 

@@ -1,12 +1,14 @@
 import fs from "fs";
+import jwt from "jsonwebtoken";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { POST } from "./create/route";
 import { GET } from "./profile/route";
+import { POST as updatePOST } from "./update/route";
 
 /*
- * The create and profile handlers both read and write the same
+ * The create, profile, and update handlers all read and write the same
  * .data/user_profiles.json. Vitest runs separate test FILES in parallel
  * workers, so keeping these suites in one file is what stops them clobbering
  * each other's fixture mid-run.
@@ -40,9 +42,34 @@ function get(url: string) {
   return GET(new Request(url));
 }
 
+const JWT_SECRET = "test-jwt-secret";
+
+function tokenFor(walletAddress: string) {
+  return jwt.sign({ walletAddress, address: walletAddress }, JWT_SECRET, {
+    algorithm: "HS256",
+  });
+}
+
+function update(body: unknown, authorization?: string) {
+  return updatePOST(
+    new Request("http://localhost/users/update", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(authorization ? { authorization } : {}),
+      },
+      body: JSON.stringify(body),
+    }),
+  );
+}
+
+let savedJwtSecret: string | undefined;
+
 beforeEach(() => {
   backup = fs.existsSync(DB_FILE) ? fs.readFileSync(DB_FILE, "utf-8") : null;
   writeDb({});
+  savedJwtSecret = process.env.JWT_SECRET;
+  process.env.JWT_SECRET = JWT_SECRET;
 });
 
 afterEach(() => {
@@ -51,6 +78,8 @@ afterEach(() => {
   } else {
     fs.writeFileSync(DB_FILE, backup, "utf-8");
   }
+  if (savedJwtSecret === undefined) delete process.env.JWT_SECRET;
+  else process.env.JWT_SECRET = savedJwtSecret;
 });
 
 describe("GET /users/profile", () => {
@@ -62,6 +91,8 @@ describe("GET /users/profile", () => {
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-08-01T00:00:00.000Z",
         ageConfirmedAt: "2026-01-01T00:00:00.000Z",
+        telegramUserId: "944872850",
+        telegramHandle: "@already_taken_tg",
       },
     });
   });
@@ -110,6 +141,28 @@ describe("GET /users/profile", () => {
       }),
     );
     expect(res.status).toBe(200);
+  });
+
+  it("excludes Telegram identifiers from an anonymous lookup", async () => {
+    const res = await get(`http://localhost/users/profile?address=${EXISTING_ADDRESS}`);
+    const body = await res.json();
+
+    expect(body.telegramUserId).toBeUndefined();
+    expect(body.telegramHandle).toBeUndefined();
+    expect(body.telegramLinked).toBeUndefined();
+  });
+
+  it("includes linked-account detail only for the owner wallet header", async () => {
+    const res = await GET(
+      new Request(`http://localhost/users/profile?address=${EXISTING_ADDRESS}`, {
+        headers: { "x-wallet-address": EXISTING_ADDRESS },
+      }),
+    );
+    const body = await res.json();
+
+    expect(body.telegramLinked).toBe(true);
+    expect(body.telegramUserId).toBe("944872850");
+    expect(body.telegramHandle).toBe("@already_taken_tg");
   });
 });
 
@@ -193,5 +246,67 @@ describe("POST /users/create", () => {
       const res = await post({ address: WALLET_A, username, ageConfirmed: true });
       expect(res.status, `expected ${username} to be rejected`).toBe(400);
     }
+  });
+});
+
+describe("POST /users/update (#1552)", () => {
+  beforeEach(() => {
+    writeDb({
+      [WALLET_A]: {
+        address: WALLET_A,
+        username: "original_name",
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+    });
+  });
+
+  it("rejects an anonymous request with no Authorization header", async () => {
+    const res = await update({ address: WALLET_A, username: "new_name" });
+    expect(res.status).toBe(401);
+    await expect(res.json()).resolves.toMatchObject({ code: "UNAUTHENTICATED" });
+
+    const stored = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+    expect(stored[WALLET_A].username).toBe("original_name");
+  });
+
+  it("rejects a request with an invalid token", async () => {
+    const res = await update(
+      { address: WALLET_A, username: "new_name" },
+      "Bearer not-a-real-token",
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("rejects a request whose token proves a different wallet than the body names", async () => {
+    const res = await update(
+      { address: WALLET_A, username: "new_name" },
+      `Bearer ${tokenFor(WALLET_B)}`,
+    );
+    expect(res.status).toBe(403);
+    await expect(res.json()).resolves.toMatchObject({ code: "FORBIDDEN" });
+
+    const stored = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+    expect(stored[WALLET_A].username).toBe("original_name");
+  });
+
+  it("updates the profile when the token proves ownership of the named wallet", async () => {
+    const res = await update(
+      { address: WALLET_A, username: "updated_name" },
+      `Bearer ${tokenFor(WALLET_A)}`,
+    );
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toMatchObject({ username: "updated_name" });
+
+    const stored = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+    expect(stored[WALLET_A].username).toBe("updated_name");
+  });
+
+  it("401s when JWT_SECRET is not configured, rather than trusting an unverifiable token", async () => {
+    delete process.env.JWT_SECRET;
+    const res = await update(
+      { address: WALLET_A, username: "new_name" },
+      `Bearer ${tokenFor(WALLET_A)}`,
+    );
+    expect(res.status).toBe(401);
   });
 });

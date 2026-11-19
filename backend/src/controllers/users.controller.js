@@ -1,37 +1,112 @@
 /**
  * Controller for managing user-specific operations.
  */
-const logger = require('../utils/logger');
 const User = require('../models/User.model');
-const Quest = require('../models/Quest.model');
 const audit = require('../services/audit.service');
 
 const ALLOWED_AUDIT_ACTIONS = ['wallet.deposit', 'wallet.withdraw', 'game.play'];
+const GLOBAL_AUDIT_QUERY = '*';
+
+/**
+ * Resolves the wallet a profile write is allowed to act on. The bearer token
+ * is the only trusted source of identity: the body is caller-controlled, so
+ * a body naming a different wallet is rejected rather than silently ignored
+ * (#1552). Returns null after forwarding the error to `next`.
+ */
+const ownedWalletForWrite = (req, next) => {
+  const tokenWallet = req.user?.walletAddress;
+  if (!tokenWallet) {
+    const error = new Error('A valid wallet token is required.');
+    error.statusCode = 401;
+    error.code = 'UNAUTHENTICATED';
+    next(error);
+    return null;
+  }
+
+  const bodyWallet = req.body?.walletAddress || req.body?.address;
+  if (!bodyWallet) {
+    const error = new Error('walletAddress is required.');
+    error.statusCode = 400;
+    error.code = 'INVALID_REQUEST';
+    next(error);
+    return null;
+  }
+
+  if (bodyWallet !== tokenWallet) {
+    const error = new Error('You can only write to the wallet your token proves you own.');
+    error.statusCode = 403;
+    error.code = 'FORBIDDEN';
+    next(error);
+    return null;
+  }
+
+  return tokenWallet;
+};
 
 /**
  * Shapes a DB user row into the wire format the frontend's `UserProfile`
- * type expects (`address`, camelCase telegram/timestamp fields).
- * `telegramLinked` is derived, not stored, so it can never drift from the
- * fields it's derived from.
+ * type expects. Public responses use a strict allowlist: Telegram identifiers
+ * are linked-account data and are only returned to the authenticated owner.
  */
-const serializeUser = (user) => ({
-  address: user.wallet_address,
-  username: user.username || undefined,
-  telegramHandle: user.telegram_handle || undefined,
-  telegramUserId: user.telegram_user_id || undefined,
-  telegramLinked: Boolean(user.telegram_handle || user.telegram_user_id),
-  createdAt: user.created_at instanceof Date ? user.created_at.toISOString() : user.created_at,
-  updatedAt: user.updated_at instanceof Date ? user.updated_at.toISOString() : user.updated_at,
-  ageConfirmedAt:
-    user.age_confirmed_at instanceof Date
-      ? user.age_confirmed_at.toISOString()
-      : user.age_confirmed_at || undefined,
-});
+const serializeUser = (user, { includeLinkedAccounts = false } = {}) => {
+  const toIso = (value) => (value instanceof Date ? value.toISOString() : value);
+
+  const publicProfile = {
+    address: user.wallet_address,
+    username: user.username || undefined,
+    createdAt: toIso(user.created_at),
+    updatedAt: toIso(user.updated_at),
+    ageConfirmedAt: toIso(user.age_confirmed_at) || undefined,
+  };
+
+  if (!includeLinkedAccounts) {
+    return publicProfile;
+  }
+
+  return {
+    ...publicProfile,
+    telegramHandle: user.telegram_handle || undefined,
+    telegramUserId: user.telegram_user_id || undefined,
+    telegramLinked: Boolean(user.telegram_handle || user.telegram_user_id),
+  };
+};
+
+const isOwner = (req, user) => {
+  if (!req || !req.user || !user) return false;
+  const authenticatedAddress = req.user.walletAddress || req.user.address;
+  return req.user.id === user.id || authenticatedAddress === user.wallet_address;
+};
+
+const adminRoles = () =>
+  (process.env.AUDIT_ADMIN_ROLES || '')
+    .split(',')
+    .map((role) => role.trim())
+    .filter(Boolean);
+
+const hasAdminAuditAccess = (req) => {
+  const roles = req && req.user && Array.isArray(req.user.roles) ? req.user.roles : [];
+  return adminRoles().some((role) => roles.includes(role));
+};
+
+const forbidden = (message, code) => {
+  const error = new Error(message);
+  error.statusCode = 403;
+  error.code = code;
+  return error;
+};
 
 const getAuditLogs = async (req, res, next) => {
   try {
-    const { actor, action } = req.query;
+    const { action } = req.query;
+    const requestedActor = req.query.actor;
     const limit = req.query.limit === undefined ? 50 : parseInt(req.query.limit, 10);
+    const authenticatedActor =
+      (req.user && (req.user.walletAddress || req.user.address)) ||
+      (req.user && req.user.id != null ? String(req.user.id) : null);
+
+    if (!authenticatedActor) {
+      throw forbidden('Audit logs require an authenticated actor.', 'AUDIT_ACTOR_REQUIRED');
+    }
 
     if (req.query.limit !== undefined && (Number.isNaN(limit) || limit < 1)) {
       const error = new Error('Query parameter "limit" must be a positive integer.');
@@ -47,7 +122,28 @@ const getAuditLogs = async (req, res, next) => {
       throw error;
     }
 
-    const entries = await audit.list({ actor, action, limit });
+    const admin = hasAdminAuditAccess(req);
+    const explicitGlobal = requestedActor === GLOBAL_AUDIT_QUERY || requestedActor === '';
+    const isGlobalQuery = explicitGlobal || (requestedActor === undefined && admin);
+
+    if (explicitGlobal && !admin) {
+      throw forbidden(
+        'Global audit log queries require an explicit admin policy.',
+        'AUDIT_GLOBAL_FORBIDDEN'
+      );
+    }
+
+    const isSelfByDefault = requestedActor === undefined && !admin;
+    if (!isGlobalQuery && !isSelfByDefault && !admin && requestedActor !== authenticatedActor) {
+      throw forbidden('You may only read your own audit logs.', 'AUDIT_ACTOR_FORBIDDEN');
+    }
+
+    const actor = isGlobalQuery
+      ? undefined
+      : requestedActor === undefined
+        ? authenticatedActor
+        : requestedActor;
+    const entries = await audit.list({ actor, action, limit, allowGlobal: isGlobalQuery && admin });
     res.status(200).json({ items: entries });
   } catch (error) {
     next(error);
@@ -56,7 +152,7 @@ const getAuditLogs = async (req, res, next) => {
 
 /**
  * Looks up a profile by wallet address, scoped strictly to the address
- * given — never "whichever profile was most recently updated". A missing
+ * given, never "whichever profile was most recently updated". A missing
  * profile is a normal 404, the standard signal that a wallet needs
  * onboarding, not an error.
  */
@@ -78,14 +174,7 @@ const getProfile = async (req, res, next) => {
       throw error;
     }
 
-    // Fetching your own profile is the one signal every surface (web app,
-    // Telegram bot) reliably sends once per visit — best-effort, must never
-    // fail the actual profile fetch.
-    Quest.recordDailyLogin(user.id).catch((err) => {
-      logger.error('Failed to record daily-login quest progress:', err);
-    });
-
-    res.status(200).json(serializeUser(user));
+    res.status(200).json(serializeUser(user, { includeLinkedAccounts: isOwner(req, user) }));
   } catch (error) {
     next(error);
   }
@@ -93,21 +182,14 @@ const getProfile = async (req, res, next) => {
 
 const createProfile = async (req, res, next) => {
   try {
-    const walletAddress = req.body.walletAddress || req.body.address;
-    if (!walletAddress) {
-      const error = new Error('walletAddress is required.');
-      error.statusCode = 400;
-      error.code = 'INVALID_REQUEST';
-      throw error;
-    }
+    const walletAddress = ownedWalletForWrite(req, next);
+    if (!walletAddress) return;
 
-    logger.info(`Creating profile for wallet: ${walletAddress}`);
     let user = await User.findByWallet(walletAddress);
     if (!user) {
       user = await User.create({
         wallet_address: walletAddress,
         username: req.body.username || 'player',
-        balance: 0,
         age_confirmed_at: req.body.ageConfirmed ? new Date() : null,
       });
     } else if (req.body.ageConfirmed && !user.age_confirmed_at) {
@@ -117,7 +199,9 @@ const createProfile = async (req, res, next) => {
       user = await User.updateByWallet(walletAddress, { age_confirmed_at: new Date() });
     }
 
-    res.status(201).json(serializeUser(user));
+    res
+      .status(201)
+      .json(serializeUser(user, { includeLinkedAccounts: isOwner(req, user) }));
   } catch (error) {
     next(error);
   }
@@ -131,13 +215,8 @@ const createProfile = async (req, res, next) => {
  */
 const updateProfile = async (req, res, next) => {
   try {
-    const walletAddress = req.body.walletAddress || req.body.address;
-    if (!walletAddress) {
-      const error = new Error('walletAddress is required.');
-      error.statusCode = 400;
-      error.code = 'INVALID_REQUEST';
-      throw error;
-    }
+    const walletAddress = ownedWalletForWrite(req, next);
+    if (!walletAddress) return;
 
     const user = await User.findByWallet(walletAddress);
     if (!user) {
@@ -158,7 +237,9 @@ const updateProfile = async (req, res, next) => {
     const updated =
       Object.keys(patch).length > 0 ? await User.updateByWallet(walletAddress, patch) : user;
 
-    res.status(200).json(serializeUser(updated));
+    res
+      .status(200)
+      .json(serializeUser(updated, { includeLinkedAccounts: isOwner(req, updated) }));
   } catch (error) {
     next(error);
   }

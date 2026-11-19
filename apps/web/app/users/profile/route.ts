@@ -17,10 +17,50 @@ export async function OPTIONS() {
 interface StoredProfile {
   address: string;
   username: string;
+  telegramHandle?: string;
+  telegramUserId?: string;
+  telegramLinked?: boolean;
   createdAt: string;
   updatedAt?: string;
   /** ISO timestamp of the player's 18-or-over confirmation. */
   ageConfirmedAt?: string;
+}
+
+/**
+ * Public profile fields only. Telegram identifiers are linked-account data:
+ * they are never returned to an anonymous lookup, no matter what is present
+ * in the stored profile row.
+ */
+type PublicProfile = Pick<
+  StoredProfile,
+  'address' | 'username' | 'createdAt' | 'updatedAt' | 'ageConfirmedAt'
+>;
+
+type OwnerProfile = PublicProfile & {
+  telegramHandle?: string;
+  telegramUserId?: string;
+  telegramLinked: boolean;
+};
+
+function toPublicProfile(profile: StoredProfile): PublicProfile {
+  return {
+    address: profile.address,
+    username: profile.username,
+    createdAt: profile.createdAt,
+    ...(profile.updatedAt ? { updatedAt: profile.updatedAt } : {}),
+    ...(profile.ageConfirmedAt ? { ageConfirmedAt: profile.ageConfirmedAt } : {}),
+  };
+}
+
+function toOwnerProfile(profile: StoredProfile): OwnerProfile {
+  return {
+    ...toPublicProfile(profile),
+    telegramLinked: Boolean(
+      profile.telegramLinked || profile.telegramHandle || profile.telegramUserId
+    ),
+    ...(profile.telegramHandle ? { telegramHandle: profile.telegramHandle } : {}),
+    ...(profile.telegramUserId ? { telegramUserId: profile.telegramUserId } : {}),
+  };
 }
 
 function readProfiles(): Record<string, StoredProfile> {
@@ -38,7 +78,7 @@ function readProfiles(): Record<string, StoredProfile> {
 /**
  * Look up the profile for one wallet address.
  *
- * Returns 404 when that address has no profile — which is a normal, expected
+ * Returns 404 when that address has no profile, which is a normal, expected
  * state for a wallet connecting for the first time, and the signal the client
  * uses to run first-run onboarding.
  *
@@ -46,8 +86,8 @@ function readProfiles(): Record<string, StoredProfile> {
  * identities:
  *
  *   1. When the requested address had no record, the handler returned the
- *      most recently updated profile *belonging to some other address*. A
- *      fresh wallet would therefore adopt another player's username — a
+ *      most recently updated profile belonging to some other address. A
+ *      fresh wallet would therefore adopt another player's username, a
  *      cross-account identity leak, not just a cosmetic bug.
  *   2. Failing that, it synthesized `Player_<last4>`. That let an
  *      unregistered wallet appear registered, so the app never asked the
@@ -77,5 +117,11 @@ export async function GET(request: Request) {
     );
   }
 
-  return NextResponse.json(profile, { headers: corsHeaders });
+  // The wallet header is the local surface's assertion of which wallet is
+  // signed in. Only that owner gets linked-account detail; an anonymous
+  // lookup by the same address query parameter sees the public allowlist.
+  const ownerAddress = request.headers.get('x-wallet-address');
+  const body = ownerAddress === profile.address ? toOwnerProfile(profile) : toPublicProfile(profile);
+
+  return NextResponse.json(body, { headers: corsHeaders });
 }

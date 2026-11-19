@@ -23,6 +23,7 @@ jest.mock('../../src/utils/logger', () => ({
 }));
 
 const audit = require('../../src/services/audit.service');
+const AuditLog = require('../../src/models/AuditLog.model');
 const logger = require('../../src/utils/logger');
 
 describe('Audit Log Service', () => {
@@ -163,6 +164,15 @@ describe('Audit Log Service', () => {
       const hash1 = audit.hashPayload({ amount: 100 });
       const hash2 = audit.hashPayload({ amount: 200 });
       expect(hash1).not.toBe(hash2);
+    });
+  });
+
+  describe('list scoping', () => {
+    test('rejects an unscoped findAll unless global access is explicit', async () => {
+      await expect(AuditLog.findAll({})).rejects.toMatchObject({
+        code: 'AUDIT_ACTOR_REQUIRED',
+      });
+      await expect(AuditLog.findAll({ actor: 'user-123' })).resolves.toEqual([]);
     });
   });
 
