@@ -3,6 +3,7 @@
  */
 const User = require('../models/User.model');
 const audit = require('../services/audit.service');
+const { validateProfileInput } = require('../utils/profile-validation');
 
 const ALLOWED_AUDIT_ACTIONS = ['wallet.deposit', 'wallet.withdraw', 'game.play'];
 const GLOBAL_AUDIT_QUERY = '*';
@@ -41,6 +42,15 @@ const ownedWalletForWrite = (req, next) => {
   }
 
   return tokenWallet;
+};
+
+/** Turns a validation result into the same typed error the rest of this file uses. */
+const throwIfInvalid = (result) => {
+  if (!result) return;
+  const error = new Error(result.message);
+  error.statusCode = result.statusCode;
+  error.code = result.code;
+  throw error;
 };
 
 /**
@@ -182,6 +192,8 @@ const getProfile = async (req, res, next) => {
 
 const createProfile = async (req, res, next) => {
   try {
+    throwIfInvalid(validateProfileInput(req.body));
+
     const walletAddress = ownedWalletForWrite(req, next);
     if (!walletAddress) return;
 
@@ -189,19 +201,17 @@ const createProfile = async (req, res, next) => {
     if (!user) {
       user = await User.create({
         wallet_address: walletAddress,
-        username: req.body.username || 'player',
-        age_confirmed_at: req.body.ageConfirmed ? new Date() : null,
+        username: req.body.username ? req.body.username.trim() : 'player',
+        age_confirmed_at: req.body.ageConfirmed === true ? new Date() : null,
       });
-    } else if (req.body.ageConfirmed && !user.age_confirmed_at) {
+    } else if (req.body.ageConfirmed === true && !user.age_confirmed_at) {
       // Idempotent create hit a wallet that already has a profile (e.g. one
       // that predates the age gate) — record the confirmation on it instead
       // of silently dropping it, or this profile can never clear onboarding.
       user = await User.updateByWallet(walletAddress, { age_confirmed_at: new Date() });
     }
 
-    res
-      .status(201)
-      .json(serializeUser(user, { includeLinkedAccounts: isOwner(req, user) }));
+    res.status(201).json(serializeUser(user, { includeLinkedAccounts: isOwner(req, user) }));
   } catch (error) {
     next(error);
   }
@@ -215,6 +225,8 @@ const createProfile = async (req, res, next) => {
  */
 const updateProfile = async (req, res, next) => {
   try {
+    throwIfInvalid(validateProfileInput(req.body));
+
     const walletAddress = ownedWalletForWrite(req, next);
     if (!walletAddress) return;
 
@@ -227,19 +239,18 @@ const updateProfile = async (req, res, next) => {
     }
 
     const patch = {};
-    if (req.body.username !== undefined) patch.username = req.body.username;
+    if (req.body.username !== undefined) patch.username = req.body.username.trim();
     if (req.body.telegramUserId !== undefined) patch.telegram_user_id = req.body.telegramUserId;
     if (req.body.telegramHandle !== undefined) patch.telegram_handle = req.body.telegramHandle;
     // Only ever set, never clear — an absent or false `ageConfirmed` here
     // must not erase a confirmation the player already gave.
-    if (req.body.ageConfirmed && !user.age_confirmed_at) patch.age_confirmed_at = new Date();
+    if (req.body.ageConfirmed === true && !user.age_confirmed_at)
+      patch.age_confirmed_at = new Date();
 
     const updated =
       Object.keys(patch).length > 0 ? await User.updateByWallet(walletAddress, patch) : user;
 
-    res
-      .status(200)
-      .json(serializeUser(updated, { includeLinkedAccounts: isOwner(req, updated) }));
+    res.status(200).json(serializeUser(updated, { includeLinkedAccounts: isOwner(req, updated) }));
   } catch (error) {
     next(error);
   }
