@@ -211,9 +211,7 @@ const createProfile = async (req, res, next) => {
       user = await User.updateByWallet(walletAddress, { age_confirmed_at: new Date() });
     }
 
-    res
-      .status(201)
-      .json(serializeUser(user, { includeLinkedAccounts: isOwner(req, user) }));
+    res.status(201).json(serializeUser(user, { includeLinkedAccounts: isOwner(req, user) }));
   } catch (error) {
     next(error);
   }
@@ -246,14 +244,13 @@ const updateProfile = async (req, res, next) => {
     if (req.body.telegramHandle !== undefined) patch.telegram_handle = req.body.telegramHandle;
     // Only ever set, never clear — an absent or false `ageConfirmed` here
     // must not erase a confirmation the player already gave.
-    if (req.body.ageConfirmed === true && !user.age_confirmed_at) patch.age_confirmed_at = new Date();
+    if (req.body.ageConfirmed === true && !user.age_confirmed_at)
+      patch.age_confirmed_at = new Date();
 
     const updated =
       Object.keys(patch).length > 0 ? await User.updateByWallet(walletAddress, patch) : user;
 
-    res
-      .status(200)
-      .json(serializeUser(updated, { includeLinkedAccounts: isOwner(req, updated) }));
+    res.status(200).json(serializeUser(updated, { includeLinkedAccounts: isOwner(req, updated) }));
   } catch (error) {
     next(error);
   }
