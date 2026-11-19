@@ -1,4 +1,5 @@
 #![no_std]
+#![allow(clippy::too_many_arguments)]
 #![allow(unexpected_cfgs)]
 
 use soroban_sdk::{
@@ -182,7 +183,11 @@ impl ComprehensiveTestSuite {
         }
 
         env.storage().instance().set(&DataKey::Paused, &true);
-        PauseChanged { paused: true, admin }.publish(&env);
+        PauseChanged {
+            paused: true,
+            admin,
+        }
+        .publish(&env);
         Ok(())
     }
 
@@ -263,7 +268,9 @@ impl ComprehensiveTestSuite {
         let new_total = get_u32(&env, &DataKey::TotalSuites)?
             .checked_add(1)
             .ok_or(Error::Overflow)?;
-        env.storage().instance().set(&DataKey::TotalSuites, &new_total);
+        env.storage()
+            .instance()
+            .set(&DataKey::TotalSuites, &new_total);
 
         SuiteRegistered {
             suite,
@@ -360,10 +367,8 @@ impl ComprehensiveTestSuite {
         let has_no_failures = failed_cases == 0;
         let meets_coverage = coverage_bps >= coverage_target_bps;
 
-        let gate_passed = has_required_integration
-            && has_required_property
-            && has_no_failures
-            && meets_coverage;
+        let gate_passed =
+            has_required_integration && has_required_property && has_no_failures && meets_coverage;
 
         let record = RunRecord {
             suite: suite.clone(),
@@ -388,7 +393,9 @@ impl ComprehensiveTestSuite {
         let new_total_runs = get_u32(&env, &DataKey::TotalRuns)?
             .checked_add(1)
             .ok_or(Error::Overflow)?;
-        env.storage().instance().set(&DataKey::TotalRuns, &new_total_runs);
+        env.storage()
+            .instance()
+            .set(&DataKey::TotalRuns, &new_total_runs);
 
         RunRecorded {
             suite,
@@ -475,7 +482,10 @@ fn require_ready_for_mutation(env: &Env) -> Result<(), Error> {
 }
 
 fn get_u32(env: &Env, key: &DataKey) -> Result<u32, Error> {
-    env.storage().instance().get(key).ok_or(Error::NotInitialized)
+    env.storage()
+        .instance()
+        .get(key)
+        .ok_or(Error::NotInitialized)
 }
 
 fn get_admin(env: &Env) -> Result<Address, Error> {
@@ -518,11 +528,17 @@ fn get_suite(env: &Env, suite: &Symbol) -> Result<SuiteConfig, Error> {
 }
 
 fn is_paused(env: &Env) -> bool {
-    env.storage().instance().get(&DataKey::Paused).unwrap_or(false)
+    env.storage()
+        .instance()
+        .get(&DataKey::Paused)
+        .unwrap_or(false)
 }
 
 fn is_killed(env: &Env) -> bool {
-    env.storage().instance().get(&DataKey::Killed).unwrap_or(false)
+    env.storage()
+        .instance()
+        .get(&DataKey::Killed)
+        .unwrap_or(false)
 }
 
 fn validate_suite_input(_suite: &Symbol, min_cases: u32) -> Result<(), Error> {
@@ -534,4 +550,3 @@ fn validate_suite_input(_suite: &Symbol, min_cases: u32) -> Result<(), Error> {
 
 #[cfg(test)]
 mod test;
-

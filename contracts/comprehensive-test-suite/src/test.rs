@@ -2,7 +2,7 @@
 
 use super::*;
 use soroban_sdk::{
-    testutils::{Address as _, BytesN as _, Events as _},
+    testutils::{Address as _, BytesN as _},
     Address, Env,
 };
 
@@ -102,26 +102,10 @@ fn duplicate_run_is_rejected() {
     env.mock_all_auths();
     client.register_suite(&admin, &suite, &1u32, &false, &false);
 
-    assert!(client.record_run(
-        &reporter,
-        &suite,
-        &build,
-        &1u32,
-        &0u32,
-        &8_000u32,
-        &false,
-        &false,
-    ));
+    assert!(client.record_run(&reporter, &suite, &build, &1u32, &0u32, &8_000u32, &false, &false,));
 
     let dup = client.try_record_run(
-        &reporter,
-        &suite,
-        &build,
-        &1u32,
-        &0u32,
-        &8_000u32,
-        &false,
-        &false,
+        &reporter, &suite, &build, &1u32, &0u32, &8_000u32, &false, &false,
     );
 
     assert!(dup.is_err());
@@ -189,13 +173,8 @@ fn kill_switch_blocks_future_mutations() {
     env.mock_all_auths();
     client.trigger_kill_switch(&admin, &random_hash(&env));
 
-    let res = client.try_register_suite(
-        &admin,
-        &Symbol::new(&env, "blocked"),
-        &1u32,
-        &false,
-        &false,
-    );
+    let res =
+        client.try_register_suite(&admin, &Symbol::new(&env, "blocked"), &1u32, &false, &false);
     assert!(res.is_err());
 
     let state = client.state();

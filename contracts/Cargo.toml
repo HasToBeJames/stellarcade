@@ -23,6 +23,7 @@ members = [
     "badge-minter",
     "balance-management",
     "challenge-ladder",
+    "bonus-rotator",
     "coin-flip",
     "color-prediction",
     "comprehensive-test-suite",
@@ -132,15 +133,6 @@ exclude = [
     # explicitly in `members` above — they've been removed from `members`
     # too. Fix and re-add individually; don't bulk re-add.
     "achievements",
-    "anti-cheat-bounties",
-    "arena-ladder",
-    "arena-passes",
-    "asset-escrow-v3",
-    "attendance-pass",
-    "auction-house",
-    "badge-minter",
-    "bonus-rotator",
-    "clan-registry",
     "contract-upgrade-timelock",
     "creator-vaults",
     "cross-chain-bridge",

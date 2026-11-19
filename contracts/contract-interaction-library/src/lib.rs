@@ -168,14 +168,17 @@ impl ContractInteractionLibrary {
     /// Register a contract under a human-readable `name` (1-32 chars, unique).
     pub fn register_contract(env: Env, name: String, address: Address, version: u32) {
         Self::require_admin(&env);
-        if name.len() == 0 || name.len() > 32 {
+        if name.is_empty() || name.len() > 32 {
             panic!("Invalid name: must be 1-32 characters");
         }
         if version == 0 {
             panic!("Invalid version: must be positive");
         }
-        let mut registry: Map<String, ContractEntry> =
-            env.storage().instance().get(&DataKey::Registry).unwrap_or(Map::new(&env));
+        let mut registry: Map<String, ContractEntry> = env
+            .storage()
+            .instance()
+            .get(&DataKey::Registry)
+            .unwrap_or(Map::new(&env));
         if registry.contains_key(name.clone()) {
             panic!("Contract name already registered");
         }
@@ -187,14 +190,22 @@ impl ContractInteractionLibrary {
         };
         registry.set(name.clone(), entry);
         env.storage().instance().set(&DataKey::Registry, &registry);
-        ContractRegistered { name, address, version }.publish(&env);
+        ContractRegistered {
+            name,
+            address,
+            version,
+        }
+        .publish(&env);
     }
 
     /// Deactivate a registered contract by name.
     pub fn deactivate_contract(env: Env, name: String) {
         Self::require_admin(&env);
-        let mut registry: Map<String, ContractEntry> =
-            env.storage().instance().get(&DataKey::Registry).unwrap_or(Map::new(&env));
+        let mut registry: Map<String, ContractEntry> = env
+            .storage()
+            .instance()
+            .get(&DataKey::Registry)
+            .unwrap_or(Map::new(&env));
         let mut entry = registry.get(name.clone()).expect("Contract not found");
         entry.active = false;
         registry.set(name.clone(), entry);
@@ -208,8 +219,11 @@ impl ContractInteractionLibrary {
         if new_version == 0 {
             panic!("Invalid version: must be positive");
         }
-        let mut registry: Map<String, ContractEntry> =
-            env.storage().instance().get(&DataKey::Registry).unwrap_or(Map::new(&env));
+        let mut registry: Map<String, ContractEntry> = env
+            .storage()
+            .instance()
+            .get(&DataKey::Registry)
+            .unwrap_or(Map::new(&env));
         let mut entry = registry.get(name.clone()).expect("Contract not found");
         entry.address = new_address.clone();
         entry.version = new_version;
@@ -222,8 +236,11 @@ impl ContractInteractionLibrary {
 
     /// Return the full registry entry for `name`.
     pub fn get_contract(env: Env, name: String) -> ContractEntry {
-        let registry: Map<String, ContractEntry> =
-            env.storage().instance().get(&DataKey::Registry).unwrap_or(Map::new(&env));
+        let registry: Map<String, ContractEntry> = env
+            .storage()
+            .instance()
+            .get(&DataKey::Registry)
+            .unwrap_or(Map::new(&env));
         registry.get(name).expect("Contract not found")
     }
 
@@ -259,7 +276,9 @@ impl ContractInteractionLibrary {
             .unwrap_or(Map::new(&env));
         log.set(id, record);
         env.storage().instance().set(&DataKey::CallLog, &log);
-        env.storage().instance().set(&DataKey::CallCounter, &(id + 1));
+        env.storage()
+            .instance()
+            .set(&DataKey::CallCounter, &(id + 1));
         CallLogged {
             log_id: id,
             callee_name,
@@ -315,7 +334,11 @@ impl ContractInteractionLibrary {
     }
 }
 
-fn resolve_core(env: &Env, address_registry: &Address, name: &str) -> Result<Address, CoreReadError> {
+fn resolve_core(
+    env: &Env,
+    address_registry: &Address,
+    name: &str,
+) -> Result<Address, CoreReadError> {
     let registry = ContractAddressRegistryClient::new(env, address_registry);
     let name = String::from_str(env, name);
     match registry.try_resolve(&name) {
@@ -332,4 +355,3 @@ fn resolve_core(env: &Env, address_registry: &Address, name: &str) -> Result<Add
 
 #[cfg(test)]
 mod test;
-

@@ -1,7 +1,9 @@
 #![cfg(test)]
 
 use super::*;
-use soroban_sdk::{contract, contracterror, contractimpl, testutils::Address as _, Address, Env, String};
+use soroban_sdk::{
+    contract, contracterror, contractimpl, testutils::Address as _, Address, Env, String,
+};
 
 #[contract]
 struct MockRegistry;
@@ -63,9 +65,10 @@ fn setup_registry_with_prize_pool(env: &Env) -> (Address, Address) {
     let prize_pool_id = env.register(MockPrizePool, ());
 
     env.as_contract(&registry_id, || {
-        env.storage()
-            .instance()
-            .set(&("addr", String::from_str(env, "prize-pool")), &prize_pool_id);
+        env.storage().instance().set(
+            &("addr", String::from_str(env, "prize-pool")),
+            &prize_pool_id,
+        );
     });
 
     let pool_admin = Address::generate(env);
@@ -203,7 +206,10 @@ fn typed_read_resolves_and_reads_prize_pool() {
 fn typed_read_missing_registry_entry_normalizes_error() {
     let (env, client, _) = setup();
     let registry_id = env.register(MockRegistry, ());
-    let err = client.try_read_prize_pool_config(&registry_id).unwrap_err().unwrap();
+    let err = client
+        .try_read_prize_pool_config(&registry_id)
+        .unwrap_err()
+        .unwrap();
     assert_eq!(err, CoreReadError::RegistryEntryMissing);
 }
 
@@ -215,6 +221,9 @@ fn typed_read_registry_not_initialized_normalizes_error() {
         env.storage().instance().set(&"mode", &1u32);
     });
 
-    let err = client.try_read_prize_pool_config(&registry_id).unwrap_err().unwrap();
+    let err = client
+        .try_read_prize_pool_config(&registry_id)
+        .unwrap_err()
+        .unwrap();
     assert_eq!(err, CoreReadError::RegistryNotInitialized);
 }

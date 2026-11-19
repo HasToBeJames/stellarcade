@@ -1970,6 +1970,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellarcade-challenge-ladder"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "stellarcade-clan-seasons"
 version = "0.1.0"
 dependencies = [
@@ -1993,6 +2000,13 @@ dependencies = [
 
 [[package]]
 name = "stellarcade-combo-rewards"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-comprehensive-test-suite"
 version = "0.1.0"
 dependencies = [
  "soroban-sdk",
@@ -2031,6 +2045,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellarcade-contract-interaction-library"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "stellarcade-contract-metadata-registry"
 version = "0.1.0"
 dependencies = [
@@ -2046,6 +2067,13 @@ dependencies = [
 
 [[package]]
 name = "stellarcade-contract-role-registry"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-creator-drops"
 version = "0.1.0"
 dependencies = [
  "soroban-sdk",
