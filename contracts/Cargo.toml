@@ -119,6 +119,10 @@ members = [
     "number-guess",
     "reward-vesting",
     "session-nonce-manager",
+    "raffle-engine",
+    "rank-rewards",
+    "referral-quests",
+    "reserve-auction",
 ]
 
 exclude = [
@@ -151,10 +155,6 @@ exclude = [
     "prize-router-v2",
     "quest-ledger-v2",
     "queue-rewards",
-    "raffle-engine",
-    "rank-rewards",
-    "referral-quests",
-    "reserve-auction",
     "reward-bridges",
     "reward-unlocker",
     "round-vouchers",

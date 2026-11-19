@@ -29,12 +29,12 @@ Generated from `contracts/Cargo.toml` and `#[test]` attributes in each crate's
 result whenever membership or test attributes change;
 `python3 scripts/contract_inventory.py --check` fails when this block is stale.
 
-- Workspace members: **117**
-- Effectively excluded crates: **37** (a crate listed in both
+- Workspace members: **121**
+- Effectively excluded crates: **33** (a crate listed in both
   `members` and `exclude` is a member, not an exclusion)
 - Crate directories containing a `Cargo.toml`: **154**
 
-**Excluded crates** (37): `higher-lower`, `merch-redemption`, `profile-perks`, `achievements`, `contract-upgrade-timelock`, `creator-vaults`, `cross-chain-bridge`, `daily-challenges`, `daily-reward-emission`, `escrow-ledger`, `escrow-vault`, `fanout-distributor`, `governance-token`, `guild-progress`, `ladder-checkpoints`, `ladder-seasons`, `loot-crate`, `map-voting`, `mission-ledger`, `prize-router-v2`, `quest-ledger-v2`, `queue-rewards`, `raffle-engine`, `rank-rewards`, `referral-quests`, `reserve-auction`, `reward-bridges`, `reward-unlocker`, `round-vouchers`, `season-rewards-vault`, `squad-match`, `squad-rewards`, `squad-roster`, `trivia-game`, `upgrade-mechanism`, `wallet-claims-v2`, `wallet-reserves`.
+**Excluded crates** (33): `higher-lower`, `merch-redemption`, `profile-perks`, `achievements`, `contract-upgrade-timelock`, `creator-vaults`, `cross-chain-bridge`, `daily-challenges`, `daily-reward-emission`, `escrow-ledger`, `escrow-vault`, `fanout-distributor`, `governance-token`, `guild-progress`, `ladder-checkpoints`, `ladder-seasons`, `loot-crate`, `map-voting`, `mission-ledger`, `prize-router-v2`, `quest-ledger-v2`, `queue-rewards`, `reward-bridges`, `reward-unlocker`, `round-vouchers`, `season-rewards-vault`, `squad-match`, `squad-rewards`, `squad-roster`, `trivia-game`, `upgrade-mechanism`, `wallet-claims-v2`, `wallet-reserves`.
 
 #### Test attributes by crate
 
@@ -140,13 +140,13 @@ result whenever membership or test attributes change;
 | `quest-ledger-v2` | excluded | 13 |
 | `quest-redeemer` | member | 10 |
 | `queue-rewards` | excluded | 5 |
-| `raffle-engine` | excluded | 2 |
+| `raffle-engine` | member | 3 |
 | `random-generator` | member | 41 |
-| `rank-rewards` | excluded | 4 |
-| `referral-quests` | excluded | 12 |
+| `rank-rewards` | member | 5 |
+| `referral-quests` | member | 13 |
 | `referral-rewards` | member | 2 |
 | `referral-system` | member | 27 |
-| `reserve-auction` | excluded | 5 |
+| `reserve-auction` | member | 6 |
 | `reserve-manager` | member | 9 |
 | `revenue-split` | member | 7 |
 | `reward-bridges` | excluded | 4 |
