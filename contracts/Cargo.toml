@@ -11,6 +11,7 @@ members = [
     "campaign-claims",
     "creator-royalties",
     "creator-escrow",
+    "creator-drops",
     "grant-ledger",
     "mission-checkins",
     "lobby-gates",
@@ -21,12 +22,15 @@ members = [
     "attendance-pass",
     "badge-minter",
     "balance-management",
+    "challenge-ladder",
     "bonus-rotator",
     "coin-flip",
     "color-prediction",
+    "comprehensive-test-suite",
     "contract-circuit-breaker",
     "contract-doc-generator",
     "contract-health-registry",
+    "contract-interaction-library",
     "contract-metadata-registry",
     "contract-monitoring",
     "contract-role-registry",
@@ -123,7 +127,6 @@ members = [
 
 exclude = [
     "higher-lower",
-    "challenge-ladder",
     "merch-redemption",
     "profile-perks",
     # The crates below fail `cargo clippy --workspace -D warnings` (mostly
@@ -134,10 +137,7 @@ exclude = [
     # explicitly in `members` above — they've been removed from `members`
     # too. Fix and re-add individually; don't bulk re-add.
     "achievements",
-    "comprehensive-test-suite",
-    "contract-interaction-library",
     "contract-upgrade-timelock",
-    "creator-drops",
     "creator-vaults",
     "cross-chain-bridge",
     "daily-challenges",

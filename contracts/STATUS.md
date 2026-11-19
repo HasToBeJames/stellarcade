@@ -29,12 +29,12 @@ Generated from `contracts/Cargo.toml` and `#[test]` attributes in each crate's
 result whenever membership or test attributes change;
 `python3 scripts/contract_inventory.py --check` fails when this block is stale.
 
-- Workspace members: **117**
-- Effectively excluded crates: **37** (a crate listed in both
+- Workspace members: **121**
+- Effectively excluded crates: **33** (a crate listed in both
   `members` and `exclude` is a member, not an exclusion)
 - Crate directories containing a `Cargo.toml`: **154**
 
-**Excluded crates** (37): `higher-lower`, `challenge-ladder`, `merch-redemption`, `profile-perks`, `achievements`, `comprehensive-test-suite`, `contract-interaction-library`, `contract-upgrade-timelock`, `creator-drops`, `creator-vaults`, `cross-chain-bridge`, `daily-challenges`, `daily-reward-emission`, `escrow-ledger`, `escrow-vault`, `fanout-distributor`, `governance-token`, `guild-progress`, `ladder-checkpoints`, `ladder-seasons`, `loot-crate`, `map-voting`, `mission-ledger`, `prize-router-v2`, `quest-ledger-v2`, `queue-rewards`, `reward-bridges`, `reward-unlocker`, `round-vouchers`, `season-rewards-vault`, `squad-match`, `squad-rewards`, `squad-roster`, `trivia-game`, `upgrade-mechanism`, `wallet-claims-v2`, `wallet-reserves`.
+**Excluded crates** (33): `higher-lower`, `merch-redemption`, `profile-perks`, `achievements`, `contract-upgrade-timelock`, `creator-vaults`, `cross-chain-bridge`, `daily-challenges`, `daily-reward-emission`, `escrow-ledger`, `escrow-vault`, `fanout-distributor`, `governance-token`, `guild-progress`, `ladder-checkpoints`, `ladder-seasons`, `loot-crate`, `map-voting`, `mission-ledger`, `prize-router-v2`, `quest-ledger-v2`, `queue-rewards`, `reward-bridges`, `reward-unlocker`, `round-vouchers`, `season-rewards-vault`, `squad-match`, `squad-rewards`, `squad-roster`, `trivia-game`, `upgrade-mechanism`, `wallet-claims-v2`, `wallet-reserves`.
 
 #### Test attributes by crate
 
@@ -58,22 +58,22 @@ result whenever membership or test attributes change;
 | `bonus-vault` | member | 6 |
 | `bounty-escrow` | member | 8 |
 | `campaign-claims` | member | 5 |
-| `challenge-ladder` | excluded | 4 |
+| `challenge-ladder` | member | 6 |
 | `clan-seasons` | member | 11 |
 | `coin-flip` | member | 44 |
 | `color-prediction` | member | 28 |
 | `combo-rewards` | member | 6 |
-| `comprehensive-test-suite` | excluded | 7 |
+| `comprehensive-test-suite` | member | 8 |
 | `contract-address-registry` | member | 26 |
 | `contract-circuit-breaker` | member | 3 |
 | `contract-doc-generator` | member | 14 |
 | `contract-health-registry` | member | 8 |
-| `contract-interaction-library` | excluded | 15 |
+| `contract-interaction-library` | member | 15 |
 | `contract-metadata-registry` | member | 20 |
 | `contract-monitoring` | member | 9 |
 | `contract-role-registry` | member | 21 |
 | `contract-upgrade-timelock` | excluded | 9 |
-| `creator-drops` | excluded | 7 |
+| `creator-drops` | member | 9 |
 | `creator-escrow` | member | 5 |
 | `creator-royalties` | member | 11 |
 | `creator-vaults` | excluded | 11 |
