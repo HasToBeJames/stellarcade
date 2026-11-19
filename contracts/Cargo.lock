@@ -2366,7 +2366,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellarcade-raffle-engine"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "stellarcade-random-generator"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-rank-rewards"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-referral-quests"
 version = "0.1.0"
 dependencies = [
  "soroban-sdk",
@@ -2381,6 +2402,13 @@ dependencies = [
 
 [[package]]
 name = "stellarcade-referral-system"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-reserve-auction"
 version = "0.1.0"
 dependencies = [
  "soroban-sdk",

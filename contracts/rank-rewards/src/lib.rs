@@ -43,6 +43,7 @@ impl RankRewards {
     /// Changing `reward_per_player` *does not* retroactively re-cost
     /// existing assignments — the aggregate moves only when players are
     /// added or removed.
+    #[allow(clippy::too_many_arguments)]
     pub fn upsert_bracket(
         env: Env,
         admin: Address,
@@ -258,7 +259,7 @@ fn require_admin(env: &Env, admin: &Address) {
         .instance()
         .get(&DataKey::Admin)
         .expect("Not initialized");
-    assert!(stored == *admin, "Unauthorized");
+    assert_eq!(stored, *admin, "Unauthorized");
 }
 
 #[cfg(test)]

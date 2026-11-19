@@ -346,7 +346,7 @@ fn require_admin(env: &Env, admin: &Address) {
         .instance()
         .get(&DataKey::Admin)
         .expect("Not initialized");
-    assert!(stored == *admin, "Unauthorized");
+    assert_eq!(stored, *admin, "Unauthorized");
 }
 
 #[cfg(test)]

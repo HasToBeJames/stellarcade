@@ -10,8 +10,8 @@ pub use types::{
     SellerAuctionSummary, SettlementOutcome,
 };
 
-const BUMP_AMOUNT: u32 = 518_400;
-const LIFETIME_THRESHOLD: u32 = BUMP_AMOUNT / 2;
+pub(crate) const BUMP_AMOUNT: u32 = 518_400;
+pub(crate) const LIFETIME_THRESHOLD: u32 = BUMP_AMOUNT / 2;
 
 #[contracttype]
 #[derive(Clone)]
@@ -81,7 +81,7 @@ impl ReserveAuction {
         if reserve_price <= 0 {
             return Err(Error::InvalidReservePrice);
         }
-        if asset_label.len() == 0 {
+        if asset_label.is_empty() {
             return Err(Error::InvalidAssetLabel);
         }
         if start_ledger >= end_ledger {

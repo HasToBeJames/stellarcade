@@ -104,3 +104,16 @@ fn bracket_migration_moves_aggregates_atomically() {
     assert_eq!(b2.player_count, 1);
     assert_eq!(b2.total_reward_owed, 70u128);
 }
+
+#[test]
+fn admin_actions_require_admin_authorization() {
+    let env = Env::default();
+    let (client, admin, user) = setup(&env);
+
+    env.mock_auths(&[]);
+    let result = client.try_upsert_bracket(&admin, &1, &1, &100, &50u128, &600, &false);
+    assert!(result.is_err());
+
+    let result = client.try_set_player_rank(&admin, &user, &1, &10, &1_000);
+    assert!(result.is_err());
+}
