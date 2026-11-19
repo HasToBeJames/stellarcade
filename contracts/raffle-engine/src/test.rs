@@ -48,6 +48,7 @@ fn test_missing_round_returns_predictable_state() {
 #[test]
 fn test_upsert_round_requires_admin_authorization() {
     let env = Env::default();
+    env.mock_all_auths();
     let (client, admin) = setup_client(&env);
 
     env.mock_auths(&[]);

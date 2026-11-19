@@ -60,7 +60,10 @@ fn ready_after_cooldown_and_blocked_when_paused() {
     assert_eq!(blocked.readiness, RolloverReadiness::BlockedByPause);
     assert!(blocked.bracket_paused);
     // Summary reflects the pause.
-    assert_eq!(client.bracket_reward_summary(&2).state, BracketState::Paused);
+    assert_eq!(
+        client.bracket_reward_summary(&2).state,
+        BracketState::Paused
+    );
 }
 
 #[test]
@@ -108,6 +111,7 @@ fn bracket_migration_moves_aggregates_atomically() {
 #[test]
 fn admin_actions_require_admin_authorization() {
     let env = Env::default();
+    env.mock_all_auths();
     let (client, admin, user) = setup(&env);
 
     env.mock_auths(&[]);

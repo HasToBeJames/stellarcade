@@ -175,8 +175,7 @@ impl ReferralQuests {
 
         let total = quest
             .pending_completion_count
-            .checked_add(quest.paid_completion_count)
-            .unwrap_or(u32::MAX);
+            .saturating_add(quest.paid_completion_count);
 
         CompletionQueueSummary {
             quest_id,

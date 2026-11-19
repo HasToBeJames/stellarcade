@@ -237,6 +237,7 @@ fn reward_decay_no_completions_yet() {
 #[test]
 fn admin_actions_require_admin_authorization() {
     let env = Env::default();
+    env.mock_all_auths();
     let (client, admin, user) = setup(&env);
 
     env.mock_auths(&[]);

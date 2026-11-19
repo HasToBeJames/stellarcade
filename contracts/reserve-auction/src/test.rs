@@ -105,6 +105,7 @@ fn test_pause_blocks_bid_workflow() {
 #[test]
 fn test_create_auction_requires_seller_authorization() {
     let env = Env::default();
+    env.mock_all_auths();
     let (client, _admin, seller, _bidder) = setup(&env);
     let asset_label = String::from_str(&env, "vip-seat");
 

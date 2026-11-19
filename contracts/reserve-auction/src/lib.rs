@@ -56,13 +56,17 @@ impl ReserveAuction {
         admin.require_auth();
         env.storage().instance().set(&DataKey::Admin, &admin);
         env.storage().instance().set(&DataKey::GlobalPaused, &false);
-        env.storage().instance().set(&DataKey::NextAuctionId, &0_u64);
+        env.storage()
+            .instance()
+            .set(&DataKey::NextAuctionId, &0_u64);
         Ok(())
     }
 
     pub fn set_paused(env: Env, paused: bool) -> Result<(), Error> {
         Self::require_admin(&env)?;
-        env.storage().instance().set(&DataKey::GlobalPaused, &paused);
+        env.storage()
+            .instance()
+            .set(&DataKey::GlobalPaused, &paused);
         Ok(())
     }
 
@@ -241,10 +245,10 @@ impl ReserveAuction {
             if let Some(auction) = storage::get_auction(&env, auction_id) {
                 if auction.seller == seller && !auction.settled {
                     let phase = Self::phase_for(&env, &auction);
-                    if phase == AuctionPhase::Pending || phase == AuctionPhase::Live {
-                        if auction.highest_bid > highest_open_bid {
-                            highest_open_bid = auction.highest_bid;
-                        }
+                    if (phase == AuctionPhase::Pending || phase == AuctionPhase::Live)
+                        && auction.highest_bid > highest_open_bid
+                    {
+                        highest_open_bid = auction.highest_bid;
                     }
                 }
             }
