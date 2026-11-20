@@ -2457,6 +2457,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellarcade-reward-bridges"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "stellarcade-reward-distribution"
 version = "0.1.0"
 dependencies = [
