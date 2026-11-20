@@ -2485,6 +2485,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellarcade-reward-unlocker"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "stellarcade-reward-vesting"
 version = "0.1.0"
 dependencies = [
